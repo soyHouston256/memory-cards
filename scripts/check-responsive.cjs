@@ -10,7 +10,6 @@ const url = process.env.TEST_URL || 'https://memory-cards.maxflow.ink';
       const page = await browser.newPage({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile });
       const errors = [];
       page.on('pageerror', e => errors.push(e.message));
-      await page.clock.install();
       assert.equal((await page.goto(url, { waitUntil: 'networkidle' })).status(), 200);
       const noOverflow = async () => assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `overflow at ${width}`);
       await noOverflow();
@@ -19,7 +18,7 @@ const url = process.env.TEST_URL || 'https://memory-cards.maxflow.ink';
       } else {
         await page.keyboard.press('Space');
       }
-      await page.clock.runFor(2650);
+      await page.waitForTimeout(2650);
       async function checkBoard() {
         await noOverflow();
         for (const selector of ['.previous-card .card-back', '.current-card .card-face', '.answer-button']) {
@@ -36,8 +35,9 @@ const url = process.env.TEST_URL || 'https://memory-cards.maxflow.ink';
         await page.keyboard.press('Enter');
       }
       assert.ok(await page.locator('.answer-button').isDisabled());
-      await page.clock.runFor(500);
-      await page.clock.runFor(7000);
+      await page.waitForTimeout(500);
+      await page.waitForTimeout(7000);
+      await page.getByText("5/15", { exact: true }).first().waitFor();
       await checkBoard(); // history now contains three cards
       await page.screenshot({ path: `/tmp/memory-cards-responsive-${width}.png`, fullPage: false });
       assert.deepEqual(errors, []);
