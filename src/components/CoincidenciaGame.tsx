@@ -86,7 +86,7 @@ const CoincidenciaGame = () => {
     setScore(value => Math.max(0, value + (correct ? 100 : -50)));
     setFeedback({
       correct,
-      message: correct ? '✓ +100' : playerSaysMatch ? '✗ -50 No coincidían' : '✗ -50 Debiste presionar ENTER',
+      message: correct ? '✓ +100' : playerSaysMatch ? '✗ -50 No coincidían' : '✗ -50 Debiste indicar que coinciden',
       points: correct ? 100 : -50,
     });
     setPhase('feedback');
@@ -143,8 +143,8 @@ const CoincidenciaGame = () => {
 
   if (!gameStarted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-2xl text-center">
+      <div className="game-shell min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="intro-panel bg-white rounded-2xl shadow-2xl p-12 max-w-2xl text-center">
           <div className="mb-8">
             <Trophy className="w-20 h-20 mx-auto text-yellow-500 mb-4" />
             <h1 className="text-5xl font-bold text-gray-800 mb-4">Memoria Secuencial</h1>
@@ -158,7 +158,7 @@ const CoincidenciaGame = () => {
               <p className="text-gray-700">🔄 La carta 1 se voltea (queda boca abajo)</p>
               <p className="text-gray-700">👁️ Aparece la carta 2</p>
               <p className="text-gray-700">❓ ¿La carta 2 coincide con la carta 1?</p>
-              <p className="text-gray-700 font-bold text-lg">✅ Si COINCIDEN → Presiona ENTER (+100 pts)</p>
+              <p className="text-gray-700 font-bold text-lg">✅ Si COINCIDEN → <span className="keyboard-hint">Presiona ENTER</span><span className="touch-hint">Toca el botón verde</span> (+100 pts)</p>
               <p className="text-gray-700 font-bold text-lg">⏭️ Si NO coinciden → No hagas nada (+100 pts)</p>
               <p className="text-gray-700">🔁 La carta se voltea automáticamente después de 3 segundos</p>
               <p className="text-gray-700">⚠️ Error = -50 puntos</p>
@@ -170,7 +170,7 @@ const CoincidenciaGame = () => {
             onClick={() => { setGameStarted(true); startNewRound(); }}
             className="bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 text-white text-2xl font-bold px-12 py-4 rounded-xl hover:from-pink-700 hover:via-purple-700 hover:to-blue-700 transform hover:scale-105 transition-all shadow-lg"
           >
-            Presiona ESPACIO para comenzar
+            <span className="keyboard-hint">Presiona ESPACIO para comenzar</span><span className="touch-hint">Toca para comenzar</span>
           </button>
         </div>
       </div>
@@ -179,8 +179,8 @@ const CoincidenciaGame = () => {
 
   if (gameState === 'gameover' || gameState === 'won') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-2xl text-center">
+      <div className="game-shell min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="intro-panel bg-white rounded-2xl shadow-2xl p-12 max-w-2xl text-center">
           <div className="mb-8">
             <div className="text-6xl mb-4">{gameState === 'won' ? '🏆' : '💔'}</div>
             <h1 className="text-5xl font-bold text-gray-800 mb-4">
@@ -205,7 +205,7 @@ const CoincidenciaGame = () => {
             }}
             className="bg-gradient-to-r from-pink-600 to-purple-600 text-white text-2xl font-bold px-12 py-4 rounded-xl hover:from-pink-700 hover:to-purple-700 transform hover:scale-105 transition-all shadow-lg"
           >
-            Presiona ESPACIO para reiniciar
+            <span className="keyboard-hint">Presiona ESPACIO para reiniciar</span><span className="touch-hint">Volver a jugar</span>
           </button>
         </div>
       </div>
@@ -213,9 +213,9 @@ const CoincidenciaGame = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-8">
+    <div className="game-shell min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
+        <div className="game-stats bg-white rounded-2xl shadow-xl p-6 mb-8">
           <div className="grid grid-cols-4 gap-4 text-center">
             <div>
               <div className="text-3xl font-bold text-purple-600">{score}</div>
@@ -249,7 +249,7 @@ const CoincidenciaGame = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-4 mb-6 text-center">
+        <div className="game-prompt bg-white rounded-xl shadow-lg p-4 mb-6 text-center">
           <div className="flex items-center justify-center gap-3 text-purple-600">
             <Timer className="w-6 h-6" />
             <span className="text-lg font-semibold">
@@ -260,11 +260,11 @@ const CoincidenciaGame = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-12">
-          <div className="flex justify-center items-center gap-8 mb-8">
+        <div className="game-board bg-white rounded-2xl shadow-xl p-12">
+          <div className="card-row flex justify-center items-center gap-8 mb-8">
             {cardsHistory.map((card, index) => (
-              <div key={card.id} className="relative opacity-60">
-                <div className="w-40 h-56 rounded-xl shadow-lg bg-gradient-to-br from-gray-300 to-gray-400 border-4 border-gray-500 flex items-center justify-center">
+              <div key={card.id} className={`history-card relative opacity-60 ${index === cardsHistory.length - 1 ? "previous-card" : "older-card"}`}>
+                <div className="card-back w-40 h-56 rounded-xl shadow-lg bg-gradient-to-br from-gray-300 to-gray-400 border-4 border-gray-500 flex items-center justify-center">
                   <div className="text-5xl">🂠</div>
                 </div>
                 {index === cardsHistory.length - 1 && (
@@ -278,12 +278,12 @@ const CoincidenciaGame = () => {
             ))}
 
             {currentCard && (
-              <div className="relative">
+              <div className="current-card relative">
                 <div className="absolute -top-10 left-1/2 transform -translate-x-1/2">
                   <div className="w-4 h-4 bg-purple-600 rounded-full animate-pulse"></div>
                 </div>
                 
-                <div className={`w-64 h-96 rounded-2xl shadow-2xl border-4 flex items-center justify-center transition-all duration-500 ${
+                <div className={`card-face w-64 h-96 rounded-2xl shadow-2xl border-4 flex items-center justify-center transition-all duration-500 ${
                   currentCardIndex === 0 
                     ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-400'
                     : 'bg-white border-purple-400'
@@ -305,7 +305,7 @@ const CoincidenciaGame = () => {
                 )}
 
                 {feedback && (
-                  <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 text-center text-2xl font-bold pointer-events-none ${
+                  <div className={`card-feedback absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 text-center text-2xl font-bold pointer-events-none ${
                     feedback.correct ? 'text-green-500' : 'text-red-500'
                   }`}>
                     {feedback.message}
@@ -324,18 +324,18 @@ const CoincidenciaGame = () => {
           </div>
 
           {currentCardIndex > 0 && (
-            <div className="flex flex-col items-center gap-4 mt-16">
+            <div className="answer-controls flex flex-col items-center gap-4 mt-16">
               <button
                 type="button"
                 onKeyDown={event => { if (event.repeat) event.preventDefault(); }}
                 onClick={() => handleAnswer(true)}
                 disabled={!canAnswer}
-                className="group relative px-20 py-8 rounded-2xl font-bold text-2xl transition-transform duration-100 active:scale-95 disabled:opacity-60 disabled:cursor-default touch-manipulation transform hover:scale-105 bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-2xl"
+                className="answer-button group relative px-20 py-8 rounded-2xl font-bold text-2xl transition-transform duration-100 active:scale-95 disabled:opacity-60 disabled:cursor-default touch-manipulation transform hover:scale-105 bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-2xl"
               >
                 <div className="text-center">
                   <div className="text-5xl mb-3">✅</div>
                   <div className="text-3xl mb-2">¡SÍ COINCIDEN!</div>
-                  <div className="text-lg font-normal opacity-90 mt-2">Presiona ENTER (+100 pts)</div>
+                  <div className="text-lg font-normal opacity-90 mt-2"><span className="keyboard-hint">Presiona ENTER</span><span className="touch-hint">Toca aquí</span> (+100 pts)</div>
                 </div>
               </button>
               
@@ -346,11 +346,11 @@ const CoincidenciaGame = () => {
           )}
         </div>
 
-        <div className="mt-6 text-center text-gray-600">
+        <div className="game-footer mt-6 text-center text-gray-600">
           <p className="text-sm">
             {currentCardIndex === 0 
               ? '¡Memoriza esta primera carta!' 
-              : 'ENTER = Sí coinciden (+100) | No hacer nada = No coinciden (+100) | Error = -50'}
+              : <><span className="keyboard-hint">ENTER</span><span className="touch-hint">Tocar el botón</span> = Sí coinciden (+100) | Esperar = No coinciden (+100) | Error = -50</>}
           </p>
         </div>
       </div>
@@ -371,7 +371,7 @@ function Countdown({ duration }: { duration: number }) {
     return () => clearInterval(timer);
   }, [duration]);
   return (
-    <div className="absolute -bottom-16 left-0 right-0 px-4">
+    <div className="card-countdown absolute -bottom-16 left-0 right-0 px-4">
       <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
         <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-[width] duration-75 ease-linear"
           style={{ width: `${remaining / duration * 100}%` }} />
