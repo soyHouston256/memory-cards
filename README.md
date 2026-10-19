@@ -63,3 +63,21 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 - ✅ Diseño responsive
 
 ¡Disfruta del juego! 🎉
+
+## ⏸️ Pausa y navegación
+
+- **Pausar / Reanudar** congela el tiempo restante, las cartas y la puntuación. Las respuestas no se aceptan mientras está pausado; al reanudar se conserva el tiempo pendiente.
+- **Ir a nivel** permite elegir cualquiera de los cinco niveles. Durante una partida pide confirmar: cambiar reinicia la puntuación; cancelar conserva la partida y su estado de pausa.
+- Al terminar los niveles 1–4 aparece un resumen sin límite de tiempo. **Siguiente nivel** continúa conservando los puntos acumulados. Al terminar el nivel 5 se muestra la victoria.
+- En móvil se juega tocando el botón verde; en escritorio se mantienen ESPACIO y ENTER. Los selectores y botones conservan su comportamiento nativo de teclado.
+
+### Pruebas de navegador
+
+Con Playwright instalado externamente, ejecutar contra la URL desplegada (o definir `TEST_URL`):
+
+```bash
+PLAYWRIGHT_MODULE=/ruta/a/playwright node scripts/check-responsive.cjs
+PLAYWRIGHT_MODULE=/ruta/a/playwright node scripts/check-controls.cjs
+```
+
+La segunda prueba completa un nivel con temporizadores reales tanto en móvil emulado como en escritorio. No sustituye una prueba en un iPhone físico.

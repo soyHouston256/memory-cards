@@ -17,10 +17,15 @@ const CoincidenciaGame = () => {
   const [phase, setPhase] = useState<'idle' | 'memorize' | 'gap' | 'answer' | 'feedback' | 'level'>('idle');
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const answered = useRef(false);
+  const [paused, setPaused] = useState(false);
+  const [pendingLevel, setPendingLevel] = useState<number | null>(null);
+  const pausedRef = useRef(false);
+  const wasPaused = useRef(false);
+  const clock = useRef({ key: '', remaining: 0, deadline: 0 });
   const currentCard = cards[currentCardIndex] ?? null;
   const previousCard = cards[currentCardIndex - 1] ?? null;
-  const canAnswer = phase === 'answer';
-  const isShowingCard = phase === 'memorize' || phase === 'answer' || phase === 'feedback';
+  const canAnswer = phase === 'answer' && !paused;
+  const isShowingCard = !paused && (phase === 'memorize' || phase === 'answer' || phase === 'feedback');
   const cardsHistory = cards.slice(Math.max(0, currentCardIndex - 3), currentCardIndex);
 
   const symbols = ['♠', '♥', '♦', '♣'];
@@ -70,6 +75,9 @@ const CoincidenciaGame = () => {
 
   const startNewRound = (roundLevel = 1) => {
     answered.current = false;
+    pausedRef.current = false;
+    setPaused(false);
+    clock.current.key = '';
     setLevel(roundLevel);
     setCards(generateCardSequence(roundLevel));
     setCurrentCardIndex(0);
@@ -78,7 +86,7 @@ const CoincidenciaGame = () => {
   };
 
   const handleAnswer = useCallback((playerSaysMatch: boolean) => {
-    if (phase !== 'answer' || answered.current || !previousCard || !currentCard) return;
+    if (pausedRef.current || phase !== 'answer' || answered.current || !previousCard || !currentCard) return;
     // Lock synchronously: a click and ENTER in the same frame count only once.
     answered.current = true;
     const actualMatch = previousCard.symbol === currentCard.symbol && previousCard.color === currentCard.color;
@@ -92,42 +100,70 @@ const CoincidenciaGame = () => {
     setPhase('feedback');
   }, [phase, previousCard, currentCard]);
 
+  const setPause = (value: boolean) => {
+    // Guard inputs synchronously, before React commits the pause render.
+    pausedRef.current = value;
+    setPaused(value);
+  };
+
+  const chooseLevel = (next: number) => {
+    if (!Number.isInteger(next) || next < 1 || next > 5) return;
+    if (gameStarted && gameState === 'playing' && phase !== 'level') {
+      wasPaused.current = pausedRef.current;
+      setPause(true);
+      setPendingLevel(next);
+    } else {
+      setScore(0);
+      setGameStarted(true);
+      setGameState('playing');
+      startNewRound(next);
+    }
+  };
+
+  const levelSelector = (
+    <label className="level-picker">Ir a nivel
+      <select aria-label="Elegir nivel" value={level} onChange={event => chooseLevel(Number(event.target.value))}>
+        {[1, 2, 3, 4, 5].map(value => <option key={value} value={value}>Nivel {value}</option>)}
+      </select>
+    </label>
+  );
+
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    if (phase === 'memorize') {
-      timer = setTimeout(() => setPhase('gap'), 2500);
-    } else if (phase === 'answer') {
-      timer = setTimeout(() => handleAnswer(false), 3000);
-    } else if (phase === 'feedback') {
-      timer = setTimeout(() => {
+    const duration = { idle: 0, memorize: 2500, answer: 3000, feedback: 350, gap: 150, level: 0 }[phase];
+    const key = `${level}-${currentCardIndex}-${phase}`;
+    if (clock.current.key !== key) clock.current = { key, remaining: duration, deadline: 0 };
+    if (paused || !duration || gameState !== 'playing') return;
+    const activeClock = clock.current;
+    activeClock.deadline = performance.now() + activeClock.remaining;
+    const timer = setTimeout(() => {
+      if (pausedRef.current) return;
+      if (phase === 'memorize') setPhase('gap');
+      else if (phase === 'answer') handleAnswer(false);
+      else if (phase === 'feedback') {
         setFeedback(null);
         if (currentCardIndex === cards.length - 1) {
           if (level === 5) setGameState('won');
-          else {
-            setFeedback({ correct: true, message: `¡Nivel ${level} completado!` });
-            setPhase('level');
-          }
+          else setPhase('level');
         } else setPhase('gap');
-      }, 350);
-    } else if (phase === 'gap') {
-      timer = setTimeout(() => {
+      } else if (phase === 'gap') {
         answered.current = false;
         setCurrentCardIndex(index => index + 1);
         setPhase('answer');
-      }, 150);
-    } else if (phase === 'level') {
-      timer = setTimeout(() => startNewRound(level + 1), 1200);
-    }
-    return () => clearTimeout(timer);
-  }, [phase, currentCardIndex, cards.length, level, handleAnswer]);
+      }
+    }, activeClock.remaining);
+    return () => {
+      clearTimeout(timer);
+      activeClock.remaining = Math.max(0, activeClock.deadline - performance.now());
+    };
+  }, [phase, currentCardIndex, cards, level, handleAnswer, paused, gameState]);
 
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (event.code !== 'Space' && event.code !== 'Enter') return;
       // Preserve native button activation without also handling the same key globally.
-      if (event.target instanceof HTMLElement && event.target.closest('button')) return;
+      if (event.target instanceof HTMLElement && event.target.closest('button, select, input, textarea')) return;
       event.preventDefault();
-      if (event.repeat) return;
+      if (event.repeat || pendingLevel !== null) return;
       if (event.code === 'Space' && (!gameStarted || gameState === 'won')) {
         setGameStarted(true);
         setScore(0);
@@ -139,7 +175,31 @@ const CoincidenciaGame = () => {
     };
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [gameStarted, gameState, handleAnswer]);
+  }, [gameStarted, gameState, handleAnswer, pendingLevel]);
+
+  if (pendingLevel !== null) {
+    return <div className="game-shell flex items-center justify-center bg-purple-50">
+      <section className="rest-panel" role="dialog" aria-modal="true" aria-labelledby="change-title">
+        <h1 id="change-title">¿Ir al nivel {pendingLevel}?</h1>
+        <p>Se descartará la partida actual y los puntos volverán a cero. El juego está pausado.</p>
+        <button autoFocus onClick={() => { setPendingLevel(null); setPause(wasPaused.current); }}>Cancelar</button>
+        <button onClick={() => { setScore(0); setPendingLevel(null); startNewRound(pendingLevel); }}>Cambiar nivel</button>
+      </section>
+    </div>;
+  }
+
+  if (phase === 'level') {
+    return <div className="game-shell flex items-center justify-center bg-purple-50">
+      <section className="rest-panel" aria-labelledby="rest-title">
+        <h1 id="rest-title">¡Nivel {level} completado!</h1>
+        <p>{levelConfig[level].totalCards} cartas · {score} puntos acumulados</p>
+        <p>Descansa. El siguiente nivel empieza cuando tú quieras.</p>
+        <button autoFocus onClick={() => startNewRound(level + 1)}>Siguiente nivel</button>
+        {levelSelector}
+        <p className="text-sm">Elegir otro nivel inicia una partida con cero puntos.</p>
+      </section>
+    </div>;
+  }
 
   if (!gameStarted) {
     return (
@@ -166,6 +226,7 @@ const CoincidenciaGame = () => {
             </div>
           </div>
 
+          {levelSelector}
           <button
             onClick={() => { setGameStarted(true); startNewRound(); }}
             className="bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 text-white text-2xl font-bold px-12 py-4 rounded-xl hover:from-pink-700 hover:via-purple-700 hover:to-blue-700 transform hover:scale-105 transition-all shadow-lg"
@@ -196,6 +257,7 @@ const CoincidenciaGame = () => {
             <div className="text-gray-600">Cartas completadas: {currentCardIndex}</div>
           </div>
 
+          {levelSelector}
           <button
             onClick={() => {
               setScore(0);
@@ -215,6 +277,10 @@ const CoincidenciaGame = () => {
   return (
     <div className="game-shell min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-8">
       <div className="max-w-6xl mx-auto">
+        <div className="game-toolbar">
+          <button aria-pressed={paused} onClick={() => setPause(!pausedRef.current)}>{paused ? 'Reanudar' : 'Pausar'}</button>
+          {levelSelector}
+        </div>
         <div className="game-stats bg-white rounded-2xl shadow-xl p-6 mb-8">
           <div className="grid grid-cols-4 gap-4 text-center">
             <div>
@@ -253,7 +319,7 @@ const CoincidenciaGame = () => {
           <div className="flex items-center justify-center gap-3 text-purple-600">
             <Timer className="w-6 h-6" />
             <span className="text-lg font-semibold">
-              {currentCardIndex === 0 
+              {paused ? 'Partida pausada' : currentCardIndex === 0
                 ? '¡Memoriza esta primera carta!' 
                 : '¿Esta carta coincide con la anterior?'}
             </span>
@@ -301,7 +367,7 @@ const CoincidenciaGame = () => {
                 </div>
 
                 {(phase === 'memorize' || phase === 'answer') && (
-                  <Countdown key={`${level}-${currentCardIndex}`} duration={phase === 'memorize' ? 2500 : 3000} />
+                  <Countdown key={`${level}-${currentCardIndex}`} duration={phase === 'memorize' ? 2500 : 3000} paused={paused} clock={clock} />
                 )}
 
                 {feedback && (
@@ -359,17 +425,18 @@ const CoincidenciaGame = () => {
 };
 
 // Keep countdown updates local so the whole board does not render 20 times/second.
-function Countdown({ duration }: { duration: number }) {
+function Countdown({ duration, paused, clock }: {
+  duration: number;
+  paused: boolean;
+  clock: React.RefObject<{ remaining: number; deadline: number }>;
+}) {
   const [remaining, setRemaining] = useState(duration);
   useEffect(() => {
-    const deadline = performance.now() + duration;
-    const timer = setInterval(() => {
-      const next = Math.max(0, deadline - performance.now());
-      setRemaining(next);
-      if (next === 0) clearInterval(timer);
-    }, 50);
+    const update = () => setRemaining(paused ? clock.current.remaining : Math.max(0, clock.current.deadline - performance.now()));
+    // Parent effect establishes the authoritative deadline before this tick.
+    const timer = setInterval(update, 50);
     return () => clearInterval(timer);
-  }, [duration]);
+  }, [paused, clock]);
   return (
     <div className="card-countdown absolute -bottom-16 left-0 right-0 px-4">
       <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
