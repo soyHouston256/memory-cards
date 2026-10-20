@@ -81,3 +81,13 @@ PLAYWRIGHT_MODULE=/ruta/a/playwright node scripts/check-controls.cjs
 ```
 
 La segunda prueba completa un nivel con temporizadores reales tanto en móvil emulado como en escritorio. No sustituye una prueba en un iPhone físico.
+
+### Movimiento de cartas
+
+El traspaso de 450 ms mueve el reverso de la carta actual a la posición anterior y hace entrar la siguiente boca abajo. Solo al terminar se revela la nueva carta y comienza su ventana de respuesta de 3 segundos. La memorización inicial sigue durando 2,5 segundos. Pausar también congela la animación; las posiciones se calculan con las dimensiones reales del tablero. Con movimiento reducido se usa una transición de opacidad.
+
+```bash
+PLAYWRIGHT_MODULE=/ruta/a/playwright node scripts/check-motion.cjs
+```
+
+Esta prueba registra vídeos en `/tmp/memory-cards-motion-videos`, mide posiciones/escala/opacidad en frames consecutivos y comprueba pausa a mitad del movimiento, coincidencias/no coincidencias y cambios de nivel en 320/375/390/430 px y escritorio.

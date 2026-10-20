@@ -78,12 +78,12 @@ test('automatic timeout advances every card, all five levels, and restart resets
   for (let level = 1; level <= 5; level++) {
     assert.equal(app.state.level, level);
     assert.equal(app.state.cards, 10 + level * 5);
-    app.advance(2650);
+    app.advance(2950);
     for (let i = 1; i < 10 + level * 5; i++) {
       assert.equal(app.state.phase, 'answer');
       assert.equal(app.state.index, i);
       app.advance(3350);
-      if (i < 9 + level * 5) app.advance(150);
+      if (i < 9 + level * 5) app.advance(450);
     }
     if (level < 5) {
       assert.equal(app.state.phase, 'level');
@@ -100,19 +100,19 @@ test('automatic timeout advances every card, all five levels, and restart resets
 });
 
 test('answer locks immediately, scores once, and cancels the old deadline', () => {
-  const app = game(); app.click(); app.advance(2650);
+  const app = game(); app.click(); app.advance(2950);
   const answer = app.button.props.onClick;
   answer(); answer(); // two events before React commits
   app.advance(0);
   assert.equal(app.state.phase, 'feedback');
   assert.ok(app.state.score === 0 || app.state.score === 100);
-  app.advance(500);
+  app.advance(800);
   assert.equal(app.state.index, 2);
   assert.equal(app.state.phase, 'answer');
   app.advance(2500); // the first card's old deadline must not answer this card
   assert.equal(app.state.index, 2);
   assert.equal(app.state.phase, 'answer');
-  app.advance(500);
+  app.advance(800);
   assert.equal(app.state.phase, 'feedback');
 });
 
@@ -121,7 +121,7 @@ test('pause preserves remaining memorize and answer time, blocks stale inputs an
   const app = game(); app.click(); app.advance(1000); app.click('Pausar');
   const frozen = { ...app.state }; app.advance(30000); assert.deepEqual(app.state, frozen);
   app.click('Reanudar'); app.advance(1499); assert.equal(app.state.phase, 'memorize');
-  app.advance(151); assert.equal(app.state.phase, 'answer');
+  app.advance(451); assert.equal(app.state.phase, 'answer');
   app.advance(800); const staleAnswer = app.button.props.onClick;
   app.click('Pausar'); staleAnswer(); app.advance(20000);
   assert.equal(app.state.phase, 'answer'); assert.equal(app.state.score, 0);
@@ -132,7 +132,7 @@ test('pause preserves remaining memorize and answer time, blocks stale inputs an
   app.click('Reanudar'); app.advance(249); assert.equal(app.state.phase, 'feedback');
   app.advance(1); assert.equal(app.state.phase, 'gap');
   app.advance(50); app.click('Pausar'); app.advance(10000);
-  app.click('Reanudar'); app.advance(99); assert.equal(app.state.phase, 'gap');
+  app.click('Reanudar'); app.advance(399); assert.equal(app.state.phase, 'gap');
   app.advance(1); assert.equal(app.state.index, 2);
 });
 
@@ -140,11 +140,11 @@ test('level selection confirms reset, cancel restores remaining time and prior p
   const app = game(); app.choose('3'); assert.equal(app.state.level, 3); assert.equal(app.state.cards, 25);
   app.advance(1000); app.choose('4'); app.advance(20000); app.click('Cancelar');
   app.advance(1499); assert.equal(app.state.phase, 'memorize');
-  app.advance(151); assert.equal(app.state.phase, 'answer');
+  app.advance(451); assert.equal(app.state.phase, 'answer');
   app.click('Pausar'); app.choose('5'); app.click('Cancelar');
   app.advance(10000); assert.equal(app.state.phase, 'answer');
   app.choose('2'); app.click('Cambiar nivel');
   assert.equal(app.state.level, 2); assert.equal(app.state.score, 0); assert.equal(app.state.index, 0);
   app.advance(2499); assert.equal(app.state.phase, 'memorize');
-  app.advance(151); assert.equal(app.state.phase, 'answer');
+  app.advance(451); assert.equal(app.state.phase, 'answer');
 });

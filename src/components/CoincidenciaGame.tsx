@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { Trophy, Timer } from 'lucide-react';
 
 type Card = { symbol: string; color: string; id: number };
@@ -129,7 +129,7 @@ const CoincidenciaGame = () => {
   );
 
   useEffect(() => {
-    const duration = { idle: 0, memorize: 2500, answer: 3000, feedback: 350, gap: 150, level: 0 }[phase];
+    const duration = { idle: 0, memorize: 2500, answer: 3000, feedback: 350, gap: 450, level: 0 }[phase];
     const key = `${level}-${currentCardIndex}-${phase}`;
     if (clock.current.key !== key) clock.current = { key, remaining: duration, deadline: 0 };
     if (paused || !duration || gameState !== 'playing') return;
@@ -327,7 +327,9 @@ const CoincidenciaGame = () => {
         </div>
 
         <div className="game-board bg-white rounded-2xl shadow-xl p-12">
-          <div className="card-row flex justify-center items-center gap-8 mb-8">
+          <div className="card-row relative flex justify-center items-center gap-8 mb-8" data-phase={phase} data-paused={paused}>
+            {Array.from({ length: 3 - cardsHistory.length }, (_, index) => <div key={`empty-${index}`} className={`history-card empty-history ${index === 2 ? 'previous-card' : 'older-card'}`} aria-hidden="true"><div className="card-back" /></div>)}
+            <CardMotion phase={phase} paused={paused} turn={`${level}-${currentCardIndex}`} clock={clock} />
             {cardsHistory.map((card, index) => (
               <div key={card.id} className={`history-card relative opacity-60 ${index === cardsHistory.length - 1 ? "previous-card" : "older-card"}`}>
                 <div className="card-back w-40 h-56 rounded-xl shadow-lg bg-gradient-to-br from-gray-300 to-gray-400 border-4 border-gray-500 flex items-center justify-center">
@@ -344,7 +346,7 @@ const CoincidenciaGame = () => {
             ))}
 
             {currentCard && (
-              <div className="current-card relative">
+              <div key={currentCard.id} className="current-card relative" data-card-id={currentCard.id}>
                 <div className="absolute -top-10 left-1/2 transform -translate-x-1/2">
                   <div className="w-4 h-4 bg-purple-600 rounded-full animate-pulse"></div>
                 </div>
@@ -423,6 +425,60 @@ const CoincidenciaGame = () => {
     </div>
   );
 };
+
+// Move only card backs during the gap: neither previous nor upcoming symbols leak.
+// Geometry comes from the live responsive slots rather than fixed pixel offsets.
+function CardMotion({ phase, paused, turn, clock }: {
+  phase: string; paused: boolean; turn: string;
+  clock: React.RefObject<{ key: string; remaining: number }>;
+}) {
+  const layer = useRef<HTMLDivElement>(null);
+  const flights = useRef<Animation[]>([]);
+  useLayoutEffect(() => {
+    if (phase !== 'gap' || !layer.current) return;
+    const root = layer.current;
+    const row = root.parentElement!;
+    const current = row.querySelector('.current-card .card-face')!.getBoundingClientRect();
+    const previous = row.querySelector('.previous-card .card-back')!.getBoundingClientRect();
+    const origin = root.getBoundingClientRect();
+    const outgoing = root.querySelector<HTMLElement>('[data-flight="outgoing"]')!;
+    const incoming = root.querySelector<HTMLElement>('[data-flight="incoming"]')!;
+    for (const node of [outgoing, incoming]) Object.assign(node.style, {
+      left: `${current.left - origin.left}px`, top: `${current.top - origin.top}px`,
+      width: `${current.width}px`, height: `${current.height}px`,
+    });
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const destination = `translate(${previous.left - current.left}px, ${previous.top - current.top}px) scale(${previous.width / current.width}, ${previous.height / current.height})`;
+    flights.current = [
+      outgoing.animate(reduced ? [{ opacity: 1 }, { opacity: 0 }] : [
+        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+        { transform: destination, opacity: .6 },
+      ], { duration: 450, easing: 'ease-in-out', fill: 'both' }),
+      incoming.animate(reduced ? [{ opacity: 0 }, { opacity: 1 }] : [
+        { transform: 'translateX(14px) scale(.8)', opacity: 0 },
+        { transform: 'translateX(0) scale(1)', opacity: 1 },
+      ], { duration: 300, delay: 150, easing: 'ease-out', fill: 'both' }),
+    ];
+    // A cancelled level picker remounts this layer: restore the frozen progress.
+    const elapsed = clock.current.key === `${turn}-gap` ? 450 - clock.current.remaining : 0;
+    for (const animation of flights.current) {
+      animation.currentTime = Math.max(0, Math.min(450, elapsed));
+      if (paused) animation.pause();
+    }
+    return () => { flights.current.forEach(animation => animation.cancel()); flights.current = []; };
+    // Pause changes must preserve the same Animation objects and currentTime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, turn, clock]);
+  useLayoutEffect(() => {
+    flights.current.forEach(animation => paused ? animation.pause() : animation.play());
+  }, [paused]);
+  return <div ref={layer} className="card-motion" aria-hidden="true">
+    {phase === 'gap' && <>
+      <div className="moving-card" data-flight="outgoing">🂠</div>
+      <div className="moving-card" data-flight="incoming">🂠</div>
+    </>}
+  </div>;
+}
 
 // Keep countdown updates local so the whole board does not render 20 times/second.
 function Countdown({ duration, paused, clock }: {

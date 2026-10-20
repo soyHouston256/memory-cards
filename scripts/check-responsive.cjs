@@ -18,7 +18,7 @@ const url = process.env.TEST_URL || 'https://memory-cards.maxflow.ink';
       } else {
         await page.keyboard.press('Space');
       }
-      await page.waitForTimeout(2650);
+      await page.waitForTimeout(2950);
       async function checkBoard() {
         await noOverflow();
         for (const selector of ['.previous-card .card-back', '.current-card .card-face', '.answer-button']) {
@@ -35,7 +35,7 @@ const url = process.env.TEST_URL || 'https://memory-cards.maxflow.ink';
         await page.keyboard.press('Enter');
       }
       assert.ok(await page.locator('.answer-button').isDisabled());
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(800);
       await page.waitForTimeout(7000);
       await page.getByText("5/15", { exact: true }).first().waitFor();
       await checkBoard(); // history now contains three cards
