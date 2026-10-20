@@ -351,7 +351,7 @@ const CoincidenciaGame = () => {
                   <div className="w-4 h-4 bg-purple-600 rounded-full animate-pulse"></div>
                 </div>
                 
-                <div className={`card-face w-64 h-96 rounded-2xl shadow-2xl border-4 flex items-center justify-center transition-all duration-500 ${
+                <div className={`card-face w-64 h-96 rounded-2xl shadow-2xl border-4 flex items-center justify-center ${
                   currentCardIndex === 0 
                     ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-400'
                     : 'bg-white border-purple-400'
@@ -439,7 +439,8 @@ function CardMotion({ phase, paused, turn, clock }: {
     const root = layer.current;
     const row = root.parentElement!;
     const current = row.querySelector('.current-card .card-face')!.getBoundingClientRect();
-    const previous = row.querySelector('.previous-card .card-back')!.getBoundingClientRect();
+    const previousElement = row.querySelector<HTMLElement>('.previous-card .card-back')!;
+    const previous = previousElement.getBoundingClientRect();
     const origin = root.getBoundingClientRect();
     const outgoing = root.querySelector<HTMLElement>('[data-flight="outgoing"]')!;
     const incoming = root.querySelector<HTMLElement>('[data-flight="incoming"]')!;
@@ -450,6 +451,9 @@ function CardMotion({ phase, paused, turn, clock }: {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const destination = `translate(${previous.left - current.left}px, ${previous.top - current.top}px) scale(${previous.width / current.width}, ${previous.height / current.height})`;
     flights.current = [
+      // Retire the old previous card instead of leaving a second back underneath
+      // the arriving card. Keep this in the same pausable animation group.
+      previousElement.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: 'both' }),
       outgoing.animate(reduced ? [{ opacity: 1 }, { opacity: 0 }] : [
         { transform: 'translate(0, 0) scale(1)', opacity: 1 },
         { transform: destination, opacity: .6 },
@@ -470,7 +474,12 @@ function CardMotion({ phase, paused, turn, clock }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, turn, clock]);
   useLayoutEffect(() => {
-    flights.current.forEach(animation => paused ? animation.pause() : animation.play());
+    flights.current.forEach(animation => {
+      if (paused) animation.pause();
+      // play() restarts finished animations; an already retired card must not
+      // flash back when resuming a longer handoff animation.
+      else if (Number(animation.currentTime) < Number(animation.effect?.getComputedTiming().endTime)) animation.play();
+    });
   }, [paused]);
   return <div ref={layer} className="card-motion" aria-hidden="true">
     {phase === 'gap' && <>

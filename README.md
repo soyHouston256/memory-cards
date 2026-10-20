@@ -91,3 +91,11 @@ PLAYWRIGHT_MODULE=/ruta/a/playwright node scripts/check-motion.cjs
 ```
 
 Esta prueba registra vídeos en `/tmp/memory-cards-motion-videos`, mide posiciones/escala/opacidad en frames consecutivos y comprueba pausa a mitad del movimiento, coincidencias/no coincidencias y cambios de nivel en 320/375/390/430 px y escritorio.
+
+### Regresión después de puntuar
+
+```bash
+PLAYWRIGHT_MODULE=/ruta/a/playwright node scripts/check-feedback.cjs
+```
+
+Comprueba la secuencia completa (feedback → traslado → siguiente carta) con tap, taps repetidos y timeout; pausa durante el feedback y a mitad del traslado. Inspecciona la visibilidad computada en cada frame: la carta fija debe ocultarse inmediatamente y la anterior debe salir antes de que llegue su reemplazo. Evita `transition-all` en `.card-face`: animar `visibility` mantiene una carta duplicada debajo de la animación. También verifica que reanudar no reinicie el desvanecimiento ya completado. Intenta WebKit si su navegador está instalado, además de Chromium.
